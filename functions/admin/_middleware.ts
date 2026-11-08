@@ -1,28 +1,23 @@
-const decode = (part: string) => {
-  const raw = atob(part.replace(/-/g,"+").replace(/_/g,"/"));
-  return Uint8Array.from(raw, c => c.charCodeAt(0));
-};
-const parse = (part: string) => JSON.parse(new TextDecoder().decode(decode(part)));
-async function verifyAccess(token:string, team:string, audience:string, expectedEmail:string) {
-  const parts=token.split(".");
-  if(parts.length!==3) return false;
-  const header=parse(parts[0]), payload=parse(parts[1]);
-  if(header.alg!=="RS256" || !header.kid) return false;
-  const response=await fetch("https://"+team+"/cdn-cgi/access/certs");
-  if(!response.ok) return false;
-  const keys:any=await response.json();
-  const cert=(keys.public_certs||[]).find((item:any)=>item.kid===header.kid);
-  if(!cert?.public_key) return false;
-  const key=await crypto.subtle.importKey("jwk",cert.public_key,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["verify"]);
-  const valid=await crypto.subtle.verify("RSASSA-PKCS1-v1_5",key,decode(parts[2]),new TextEncoder().encode(parts[0]+"."+parts[1]));
-  const aud=Array.isArray(payload.aud)?payload.aud:[payload.aud];
-  return valid && aud.includes(audience) && payload.email?.toLowerCase()===expectedEmail && payload.iss==="https://"+team && Number(payload.exp)>Math.floor(Date.now()/1000);
+type Env = { ADMIN_EMAIL:string; GOOGLE_CLIENT_ID:string; GOOGLE_CLIENT_SECRET:string; SESSION_SECRET:string };
+const decode=(s:string)=>Uint8Array.from(atob(s.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0));
+const encode=(b:ArrayBuffer|Uint8Array)=>{const a=b instanceof Uint8Array?b:new Uint8Array(b);let s="";for(const x of a)s+=String.fromCharCode(x);return btoa(s).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");};
+async function validSession(request:Request,env:Env){
+ try{
+  const cookie=request.headers.get("Cookie")||"",m=cookie.match(/(?:^|; )cv_session=([^;]+)/);if(!m||!env.SESSION_SECRET)return false;
+  const [payload,sig]=m[1].split(".");if(!payload||!sig)return false;
+  const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(env.SESSION_SECRET),{name:"HMAC",hash:"SHA-256"},false,["verify"]);
+  const ok=await crypto.subtle.verify("HMAC",key,decode(sig),new TextEncoder().encode(payload));if(!ok)return false;
+  const data=JSON.parse(new TextDecoder().decode(decode(payload)));
+  return data.email===String(env.ADMIN_EMAIL||"").toLowerCase()&&data.exp>Date.now();
+ }catch{return false;}
 }
-export const onRequest = async ({request,next,env}:any) => {
-  const email=request.headers.get("cf-access-authenticated-user-email")?.trim().toLowerCase();
-  const jwt=request.headers.get("cf-access-jwt-assertion");
-  if(!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD || !jwt || email!==String(env.ADMIN_EMAIL||"").trim().toLowerCase()) return Response.json({error:"Acesso privado. Cloudflare Access ainda não está configurado para este painel."},{status:403});
-  try { if(!(await verifyAccess(jwt,env.ACCESS_TEAM_DOMAIN,env.ACCESS_AUD,String(env.ADMIN_EMAIL||"").trim().toLowerCase()))) throw new Error("invalid token"); }
-  catch { return Response.json({error:"Sessão de acesso inválida. Entre novamente pelo Cloudflare Access."},{status:403}); }
-  return next();
+export const onRequest=async({request,next,env}:any)=>{
+ const ok=await validSession(request,env);
+ if(ok)return next();
+ const path=new URL(request.url).pathname;
+ if(!env.GOOGLE_CLIENT_ID||!env.GOOGLE_CLIENT_SECRET||!env.SESSION_SECRET||!env.ADMIN_EMAIL){
+  return new Response("O painel está em configuração. As credenciais de login do Google ainda não foram adicionadas.",{status:503,headers:{"Content-Type":"text/plain; charset=utf-8"}});
+ }
+ if(path==="/admin"||path==="/admin/")return Response.redirect(new URL("/auth/google",request.url),302);
+ return Response.json({error:"Faça login com a conta Google autorizada."},{status:401,headers:{"Cache-Control":"no-store"}});
 };
