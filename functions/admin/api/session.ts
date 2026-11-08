@@ -1,5 +1,5 @@
-interface Env{ADMIN_EMAIL:string;SESSION_SECRET:string}
-const dec=(s:string)=>Uint8Array.from(atob(s.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0));
+interface Env{DB:D1Database}
+const hex=(b:ArrayBuffer)=>Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join("");
 export const onRequestGet=async({request,env}:any)=>{
- try{const m=(request.headers.get("Cookie")||"").match(/(?:^|; )cv_session=([^;]+)/);if(!m||!env.SESSION_SECRET)throw 0;const [p,s]=m[1].split(".");const k=await crypto.subtle.importKey("raw",new TextEncoder().encode(env.SESSION_SECRET),{name:"HMAC",hash:"SHA-256"},false,["verify"]);if(!await crypto.subtle.verify("HMAC",k,dec(s),new TextEncoder().encode(p)))throw 0;const d=JSON.parse(new TextDecoder().decode(dec(p)));if(d.exp<=Date.now()||d.email!==String(env.ADMIN_EMAIL||"").trim().toLowerCase())throw 0;return Response.json({authenticated:true},{headers:{"Cache-Control":"no-store"}});}catch{return Response.json({authenticated:false},{status:401,headers:{"Cache-Control":"no-store"}});}
+ try{const token=(request.headers.get("Cookie")||"").match(/(?:^|; )cv_session=([^;]+)/)?.[1];if(!token)throw 0;const digest=hex(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(token)));const row=await env.DB.prepare("SELECT expires_at FROM admin_sessions WHERE token_hash=?").bind(digest).first() as any;if(!row||Number(row.expires_at)<=Date.now())throw 0;return Response.json({authenticated:true},{headers:{"Cache-Control":"no-store"}});}catch{return Response.json({authenticated:false},{status:401,headers:{"Cache-Control":"no-store"}});}
 };
