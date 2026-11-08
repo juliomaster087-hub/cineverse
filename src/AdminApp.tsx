@@ -12,7 +12,9 @@ export default function AdminApp() {
   const [series,setSeries] = useState<Series[]>([]);
   const [episodes,setEpisodes] = useState<Episode[]>([]);
   const [tab,setTab] = useState<"series"|"episodes">("episodes");
-  const [busy,setBusy] = useState(false);\n  const [videoFile,setVideoFile] = useState<File|null>(null);\n  const [uploading,setUploading] = useState(false);
+  const [busy,setBusy] = useState(false);
+  const [videoFile,setVideoFile] = useState<File|null>(null);
+  const [uploading,setUploading] = useState(false);
   const [message,setMessage] = useState("");
   const [accessError,setAccessError] = useState("");
   const [seriesForm,setSeriesForm] = useState({title:"",genre:"",year:"",synopsis:"",poster_url:""});
