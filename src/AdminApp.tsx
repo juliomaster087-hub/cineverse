@@ -1,9 +1,10 @@
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { ArrowLeft, CalendarClock, CheckCircle2, Clapperboard, Film, Loader2, Plus, ShieldCheck, Trash2 } from "lucide-react";
 
 type Series = { id:string; title:string; genre:string; year:number|null; synopsis:string; poster_url:string; };
 type Episode = { id:string; series_id:string; title:string; season_number:number; episode_number:number; status:string; scheduled_at:number|null; released:boolean; youtube_url:string; };
-const API = "/api/admin";
+const API = "/admin/api";
 const dateValue = (value:number|null) => value ? new Date(value).toLocaleString("pt-BR") : "—";
 
 export default function AdminApp() {
