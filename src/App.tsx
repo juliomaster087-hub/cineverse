@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight, Bookmark, Check, ChevronDown, Clapperboard, Compass,
   Play, Search, Sparkles, Tv, X,
@@ -14,7 +14,11 @@ type Series = {
   color: string;
   accent: string;
   tag?: string;
+  poster_url?: string;
+  episodes?: Episode[];
 };
+
+type Episode = { id:string; season_number:number; episode_number:number; title:string; synopsis:string; youtube_url:string; status:string; scheduled_at:number|null; available:boolean };
 
 const series: Series[] = [
   {
@@ -54,6 +58,7 @@ const filters = ["Todas", "Fantasia", "Mistério", "Aventura", "Drama", "Ficçã
 function Poster({ item, featured = false }: { item: Series; featured?: boolean }) {
   return (
     <div className={`poster-art bg-gradient-to-br ${item.color} ${featured ? "poster-featured" : ""}`}>
+      {item.poster_url && <img className="poster-image" src={item.poster_url} alt="" />}
       <div className="poster-orbit" />
       <div className="poster-glow" />
       <span className="poster-kicker">CINEVERSE ORIGINAL</span>
@@ -67,11 +72,29 @@ function Poster({ item, featured = false }: { item: Series; featured?: boolean }
   );
 }
 
+function Countdown({ target }: { target:number }) {
+  const [now,setNow] = useState(Date.now());
+  useEffect(() => { const timer=window.setInterval(()=>setNow(Date.now()),1000); return ()=>window.clearInterval(timer); },[]);
+  const diff=Math.max(0,target-now);
+  const days=Math.floor(diff/86400000), hours=Math.floor(diff%86400000/3600000), minutes=Math.floor(diff%3600000/60000), seconds=Math.floor(diff%60000/1000);
+  useEffect(()=>{ if(diff===0){ const timer=window.setTimeout(()=>window.location.reload(),700); return ()=>window.clearTimeout(timer); } },[diff]);
+  return <div className="episode-countdown"><strong>ESTREIA EM</strong><div><span>{days}<small>dias</small></span><b>:</b><span>{String(hours).padStart(2,"0")}<small>horas</small></span><b>:</b><span>{String(minutes).padStart(2,"0")}<small>min</small></span><b>:</b><span>{String(seconds).padStart(2,"0")}<small>seg</small></span></div></div>;
+}
+function youtubeEmbed(url:string) {
+  try { const parsed=new URL(url); const id=parsed.hostname.includes("youtu.be")?parsed.pathname.slice(1):parsed.searchParams.get("v"); return id ? "https://www.youtube-nocookie.com/embed/"+encodeURIComponent(id) : ""; } catch { return ""; }
+}
+
 export default function App() {
+  const [catalog,setCatalog] = useState<Series[]>(series);
   const [activeFilter, setActiveFilter] = useState("Todas");
   const [search, setSearch] = useState("");
-  const [saved, setSaved] = useState<number[]>([]);
-  const [selected, setSelected] = useState<Series | null>(null);\n  const [selectedEpisode,setSelectedEpisode] = useState<Episode | null>(null);\n\n  useEffect(() => { fetch("/api/catalog",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{ if(!data) return; const items=(data.series||[]).map((row:any)=>({ id:row.id,title:row.title,genre:row.genre||"Série",year:String(row.year||"2026"),seasons:"Temporadas disponíveis",description:row.synopsis||"",color:"from-violet-950 via-indigo-900 to-slate-950",accent:"bg-violet-400",poster_url:row.poster_url,episodes:(data.episodes||[]).filter((ep:any)=>ep.series_id===row.id) })); if(items.length) setCatalog(items); }).catch(()=>{}); },[]);
+  const [saved, setSaved] = useState<Array<number|string>>([]);
+  const [selected, setSelected] = useState<Series | null>(null);
+  const [selectedEpisode,setSelectedEpisode] = useState<Episode | null>(null);
+  useEffect(() => { fetch("/api/catalog",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{ if(!data) return; const items=(data.series||[]).map((row:any)=>({id:row.id,title:row.title,genre:row.genre||"Série",year:String(row.year||"2026"),seasons:"Temporadas disponíveis",description:row.synopsis||"",color:"from-violet-950 via-indigo-900 to-slate-950",accent:"bg-violet-400",poster_url:row.poster_url,episodes:(data.episodes||[]).filter((ep:any)=>ep.series_id===row.id)})); if(items.length) setCatalog(items); }).catch(()=>{}); },[]);
+  const [selectedEpisode,setSelectedEpisode] = useState<Episode | null>(null);
+
+  useEffect(() => { fetch("/api/catalog",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{ if(!data) return; const items=(data.series||[]).map((row:any)=>({ id:row.id,title:row.title,genre:row.genre||"Série",year:String(row.year||"2026"),seasons:"Temporadas disponíveis",description:row.synopsis||"",color:"from-violet-950 via-indigo-900 to-slate-950",accent:"bg-violet-400",poster_url:row.poster_url,episodes:(data.episodes||[]).filter((ep:any)=>ep.series_id===row.id) })); if(items.length) setCatalog(items); }).catch(()=>{}); },[]);
 
   const filtered = useMemo(() => catalog.filter((item) => {
     const matchesFilter = activeFilter === "Todas" || item.genre === activeFilter;
@@ -79,7 +102,7 @@ export default function App() {
     return matchesFilter && matchesSearch;
   }), [catalog, activeFilter, search]);
 
-  const toggleSaved = (id: number) => {
+  const toggleSaved = (id: number|string) => {
     setSaved((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
   };
 
