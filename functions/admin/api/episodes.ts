@@ -1,4 +1,4 @@
-interface Env { DB:any; MEDIA?:R2Bucket }
+interface Env { DB:any; MEDIA?:any }
 export const onRequestPost=async({request,env}:any)=>{
  let body:any;try{body=await request.json()}catch{return Response.json({error:"JSON inválido."},{status:400})}
  const {series_id,title}=body,season=Math.max(1,Number(body.season_number)||1),number=Math.max(1,Number(body.episode_number)||1);
