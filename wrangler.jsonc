@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cineverse",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-11-07",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cineverse-content",
+      "database_id": "276d785c-8102-466d-bb89-f941ec407547"
+    }
+  ]
+}
