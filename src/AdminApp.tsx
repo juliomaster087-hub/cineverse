@@ -14,6 +14,9 @@ export default function AdminApp() {
   const [tab,setTab] = useState<"series"|"episodes">("series");
   const [busy,setBusy] = useState(false);
   const [message,setMessage] = useState("");
+  const [pin,setPin] = useState("");
+  const [loginError,setLoginError] = useState("");
+  const [loginBusy,setLoginBusy] = useState(false);
   const [seriesForm,setSeriesForm] = useState({title:"",genre:"",year:"",synopsis:"",poster_url:""});
   const [episodeForm,setEpisodeForm] = useState({series_id:"",season_number:"1",episode_number:"1",title:"",synopsis:"",youtube_url:"",mode:"published",scheduled_at:""});
 
@@ -25,6 +28,9 @@ export default function AdminApp() {
     setSeries(data.series); setEpisodes(data.episodes); setAuth("ok");
   };
   useEffect(() => { fetch(API + "/session").then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(() => load()).catch(() => setAuth("blocked")); }, []);
+
+  const login = async (event:FormEvent) => { event.preventDefault(); setLoginBusy(true); setLoginError(""); try { const r=await fetch(API+"/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pin})}); const d=await r.json(); if(!r.ok) throw new Error(d.error||"Não foi possível entrar."); setPin(""); await load(); } catch(e:any) { setLoginError(e.message); } finally { setLoginBusy(false); } };
+  const signOut = async () => { await fetch(API+"/logout",{method:"POST"}); setAuth("blocked"); };
 
   const submitSeries = async (event:FormEvent) => {
     event.preventDefault(); setBusy(true); setMessage("");
@@ -48,9 +54,9 @@ export default function AdminApp() {
     if(r.ok) { setMessage("Conteúdo excluído."); await load(); } else setMessage("Não foi possível excluir.");
   };
   if(auth==="checking") return <div className="admin-screen"><Loader2 className="spin"/> Verificando acesso seguro…</div>;
-  if(auth==="blocked") return <div className="admin-screen"><div className="admin-lock"><ShieldCheck size={34}/><h1>Painel privado</h1><p>Entre com a conta Google autorizada para administrar o CineVerse.</p><a className="admin-primary" href="/auth/google">Entrar com Google</a><a href="/">Voltar ao CineVerse</a></div></div>;
+  if(auth==="blocked") return <div className="admin-screen"><div className="admin-lock"><ShieldCheck size={34}/><span className="admin-kicker">ÁREA RESTRITA</span><h1>CineVerse Studio</h1><p>Entre com seu código de acesso para publicar séries e episódios.</p><form onSubmit={login} className="admin-login-form"><label>Código de acesso<input autoComplete="current-password" inputMode="numeric" type="password" maxLength={32} value={pin} onChange={e=>setPin(e.target.value)} placeholder="Digite seu código" required/></label><button className="admin-primary" disabled={loginBusy||!pin}>{loginBusy?<Loader2 className="spin"/>:<ShieldCheck size={16}/>} Entrar no painel</button>{loginError&&<p className="admin-login-error" role="alert">{loginError}</p>}</form><a href="/">Voltar ao CineVerse</a></div></div>;
 
-  return <div className="admin-screen"><header className="admin-header"><a className="admin-brand" href="/"><Clapperboard/> CINEVERSE <span>ADMIN</span></a><div className="admin-head-actions"><a href="/" className="admin-back"><ArrowLeft size={16}/> Ver site</a><a href="/auth/logout" className="admin-back">Sair</a></div></header>
+  return <div className="admin-screen"><header className="admin-header"><a className="admin-brand" href="/"><Clapperboard/> CINEVERSE <span>ADMIN</span></a><div className="admin-head-actions"><a href="/" className="admin-back"><ArrowLeft size={16}/> Ver site</a><button type="button" onClick={signOut} className="admin-back">Sair</button></div></header>
     <main className="admin-main"><div className="admin-heading"><div><span className="admin-kicker">CENTRAL DO CRIADOR</span><h1>Painel administrativo</h1><p>Gerencie séries, episódios e estreias do CineVerse.</p></div><span className="admin-secure"><ShieldCheck size={15}/> Acesso protegido</span></div>
     <div className="admin-tabs"><button className={tab==="series"?"selected":""} onClick={()=>setTab("series")}><Film size={16}/> Séries</button><button className={tab==="episodes"?"selected":""} onClick={()=>setTab("episodes")}><CalendarClock size={16}/> Episódios e estreias</button></div>
     {message && <div className="admin-message" role="status">{message}</div>}
