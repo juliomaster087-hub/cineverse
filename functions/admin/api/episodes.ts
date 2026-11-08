@@ -3,7 +3,8 @@ export const onRequestPost=async({request,env}:any)=>{
  let body:any;try{body=await request.json()}catch{return Response.json({error:"JSON inválido."},{status:400})}
  const {series_id,title}=body,season=Math.max(1,Number(body.season_number)||1),number=Math.max(1,Number(body.episode_number)||1);
  if(!series_id||!String(title||"").trim())return Response.json({error:"Selecione uma série e informe o título."},{status:400});
- const videoKey=typeof body.video_key==="string"?body.video_key:"";\n const discardUpload=async()=>{if(videoKey&&env.MEDIA){try{await env.MEDIA.delete(videoKey)}catch{}}};
+ const videoKey=typeof body.video_key==="string"?body.video_key:"";
+ const discardUpload=async()=>{if(videoKey&&env.MEDIA){try{await env.MEDIA.delete(videoKey)}catch{}}};
  const youtube=String(body.youtube_url||"").trim();
  if(Boolean(videoKey)===Boolean(youtube))return Response.json({error:"Escolha somente uma fonte: YouTube ou arquivo enviado."},{status:400});
  if(videoKey){
