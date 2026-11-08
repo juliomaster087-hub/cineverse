@@ -2,8 +2,8 @@ interface Env { DB: D1Database }
 export const onRequestGet = async ({ env }: { env: Env }) => {
   const now = Date.now();
   const series = await env.DB.prepare(
-    "SELECT * FROM series WHERE EXISTS (SELECT 1 FROM episodes WHERE episodes.series_id = series.id AND (episodes.status = 'published' OR (episodes.status = 'scheduled' AND episodes.scheduled_at > ?))) ORDER BY featured DESC, created_at DESC"
-  ).bind(now).all();
+    "SELECT * FROM series WHERE EXISTS (SELECT 1 FROM episodes WHERE episodes.series_id = series.id AND (episodes.status IN ('published','scheduled'))) ORDER BY featured DESC, created_at DESC"
+  ).all();
   const episodes = await env.DB.prepare(
     "SELECT id, series_id, season_number, episode_number, title, synopsis, youtube_url, status, scheduled_at FROM episodes WHERE status = 'published' OR status = 'scheduled' ORDER BY season_number, episode_number"
   ).all();
