@@ -1,0 +1,1 @@
+export const onRequestPost=async()=>{const h=new Headers({"Content-Type":"application/json","Cache-Control":"no-store"});h.append("Set-Cookie","cv_session=; HttpOnly; Secure; SameSite=Strict; Path=/admin; Max-Age=0");return new Response(JSON.stringify({ok:true}),{headers:h});};
