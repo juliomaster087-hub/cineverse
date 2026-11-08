@@ -43,7 +43,7 @@ export default function AdminApp() {
   const submitEpisode = async (event:FormEvent) => {
     event.preventDefault(); setBusy(true); setMessage("");
     try {
-      const r = await fetch(API + "/episodes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(episodeForm)});
+      const r = await fetch(API + "/episodes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...episodeForm,scheduled_at:episodeForm.mode==="scheduled"?new Date(episodeForm.scheduled_at).getTime():null})});
       const d = await r.json(); if(!r.ok) throw new Error(d.error || "Erro ao salvar.");
       setEpisodeForm(v=>({...v,title:"",synopsis:"",youtube_url:""})); setMessage(episodeForm.mode==="scheduled"?"Estreia agendada para todos os visitantes!":"Episódio publicado!"); await load();
     } catch(e:any) { setMessage(e.message); } finally { setBusy(false); }
@@ -54,7 +54,7 @@ export default function AdminApp() {
     if(r.ok) { setMessage("Conteúdo excluído."); await load(); } else setMessage("Não foi possível excluir.");
   };
   if(auth==="checking") return <div className="admin-screen"><Loader2 className="spin"/> Verificando acesso seguro…</div>;
-  if(auth==="blocked") return <div className="admin-screen"><div className="admin-lock"><ShieldCheck size={34}/><span className="admin-kicker">ÁREA RESTRITA</span><h1>CineVerse Studio</h1><p>Entre com seu código de acesso para publicar séries e episódios.</p><form onSubmit={login} className="admin-login-form"><label>Código de acesso<input autoComplete="current-password" type="password" maxLength={64} value={pin} onChange={e=>setPin(e.target.value)} placeholder="Digite sua senha segura" required/></label><button className="admin-primary" disabled={loginBusy||!pin}>{loginBusy?<Loader2 className="spin"/>:<ShieldCheck size={16}/>} Entrar no painel</button>{loginError&&<p className="admin-login-error" role="alert">{loginError}</p>}</form><a href="/">Voltar ao CineVerse</a></div></div>;
+  if(auth==="blocked") return <div className="admin-screen"><div className="admin-lock"><ShieldCheck size={34}/><span className="admin-kicker">ÁREA RESTRITA</span><h1>CineVerse Studio</h1><p>Entre com seu código de acesso para publicar séries e episódios.</p><form onSubmit={login} className="admin-login-form"><label>Senha de administrador<input autoComplete="current-password" type="password" maxLength={64} value={pin} onChange={e=>setPin(e.target.value)} placeholder="Digite sua senha segura" required/></label><button className="admin-primary" disabled={loginBusy||!pin}>{loginBusy?<Loader2 className="spin"/>:<ShieldCheck size={16}/>} Entrar no painel</button>{loginError&&<p className="admin-login-error" role="alert">{loginError}</p>}</form><a href="/">Voltar ao CineVerse</a></div></div>;
 
   return <div className="admin-screen"><header className="admin-header"><a className="admin-brand" href="/"><Clapperboard/> CINEVERSE <span>ADMIN</span></a><div className="admin-head-actions"><a href="/" className="admin-back"><ArrowLeft size={16}/> Ver site</a><button type="button" onClick={signOut} className="admin-back">Sair</button></div></header>
     <main className="admin-main"><div className="admin-heading"><div><span className="admin-kicker">CENTRAL DO CRIADOR</span><h1>Painel administrativo</h1><p>Gerencie séries, episódios e estreias do CineVerse.</p></div><span className="admin-secure"><ShieldCheck size={15}/> Acesso protegido</span></div>
