@@ -92,10 +92,7 @@ export default function App() {
   const [saved, setSaved] = useState<Array<number|string>>([]);
   const [selected, setSelected] = useState<Series | null>(null);
   const [selectedEpisode,setSelectedEpisode] = useState<Episode | null>(null);
-  useEffect(() => { fetch("/api/catalog",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{ if(!data) return; if(typeof data.serverNow==="number") setServerOffset(data.serverNow-Date.now()); const items=(data.series||[]).map((row:any)=>({id:row.id,title:row.title,genre:row.genre||"Série",year:String(row.year||"2026"),seasons:"Temporadas disponíveis",description:row.synopsis||"",color:"from-violet-950 via-indigo-900 to-slate-950",accent:"bg-violet-400",poster_url:row.poster_url,episodes:(data.episodes||[]).filter((ep:any)=>ep.series_id===row.id)})); if(items.length) setCatalog(items); }).catch(()=>{}); },[]);
-  const [selectedEpisode,setSelectedEpisode] = useState<Episode | null>(null);
-
-  useEffect(() => { fetch("/api/catalog",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{ if(!data) return; const items=(data.series||[]).map((row:any)=>({ id:row.id,title:row.title,genre:row.genre||"Série",year:String(row.year||"2026"),seasons:"Temporadas disponíveis",description:row.synopsis||"",color:"from-violet-950 via-indigo-900 to-slate-950",accent:"bg-violet-400",poster_url:row.poster_url,episodes:(data.episodes||[]).filter((ep:any)=>ep.series_id===row.id) })); if(items.length) setCatalog(items); }).catch(()=>{}); },[]);
+  useEffect(() => { fetch("/api/catalog",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{ if(!data) return; if(typeof data.serverNow==="number") setServerOffset(data.serverNow-Date.now()); const items=(data.series||[]).map((row:any)=>({id:row.id,title:row.title,genre:row.genre||"Série",year:String(row.year||"2026"),seasons:"Temporadas disponíveis",description:row.synopsis||"",color:"from-violet-950 via-indigo-900 to-slate-950",accent:"bg-violet-400",poster_url:row.poster_url,episodes:(data.episodes||[]).filter((ep:any)=>ep.series_id===row.id)})); setCatalog(items); }).catch(()=>{}); },[]);
 
   const filtered = useMemo(() => catalog.filter((item) => {
     const matchesFilter = activeFilter === "Todas" || item.genre === activeFilter;
@@ -170,7 +167,7 @@ export default function App() {
             <div className="series-grid">
               {filtered.map((item) => (
                 <article className="series-card" key={item.id}>
-                  <button className="poster-button" onClick={() => setSelected(item)} aria-label={`Ver detalhes de ${item.title}`}>
+                  <button className="poster-button" onClick={() => { setSelected(item); setSelectedEpisode(null); }} aria-label={`Ver detalhes de ${item.title}`}>
                     <Poster item={item} />
                     <span className="card-play"><Play size={19} fill="currentColor" /></span>
                   </button>
