@@ -56,4 +56,4 @@ Cada episódio pode ser publicado imediatamente ou agendado para uma data e hora
 
 ### Segurança do painel
 
-O backend do painel fica em `/admin/api` e falha fechado sem uma sessão válida do Cloudflare Access. Configure uma aplicação Access específica para o caminho `cineverse-1qv.pages.dev/admin*`, com política Allow restrita ao e-mail administrador e autenticação One-time PIN. Depois, configure as variáveis de produção `ACCESS_TEAM_DOMAIN` e `ACCESS_AUD` no Pages. `ADMIN_EMAIL` já está configurado no ambiente de produção e não fica no código-fonte.
+O painel administrativo usa Google OAuth com validação do ID token, nonce, verificação de assinatura e sessão HMAC assinada no servidor. O e-mail autorizado é definido pela variável de ambiente `ADMIN_EMAIL`. Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ADMIN_EMAIL` e `SESSION_SECRET` no ambiente Production do Cloudflare Pages. O segredo OAuth e o segredo da sessão devem ser cadastrados como Secrets, nunca no repositório.
