@@ -13,7 +13,7 @@ async function valid(request:Request,env:Env){
 }
 export const onRequest=async({request,next,env}:any)=>{
  const path=new URL(request.url).pathname;
- if(path==="/admin"||path==="/admin/"||path==="/admin/api/login"||path==="/admin/api/session"||path==="/admin/api/logout")return next();
+ if(path==="/admin"||path==="/admin/"||path==="/admin/api/access"||path==="/admin/api/session"||path==="/admin/api/logout")return next();
  if(path.startsWith("/admin/api/")&&!await valid(request,env))return Response.json({error:"Acesso não autorizado."},{status:401,headers:{"Cache-Control":"no-store"}});
  return next();
 };
