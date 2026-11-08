@@ -10,7 +10,7 @@ export const onRequestPost=async({request,env}:any)=>{
  let body:any={};try{body=await request.json()}catch{return Response.json({error:"Requisição inválida."},{status:400});}
  const pin=String(body.pin||"");
  const config=await env.DB.prepare("SELECT value FROM admin_config WHERE key='pin_hash'").first() as any;
- if(!config?.value||pin.length<16||pin.length>64||/\\s/.test(pin)||!await hashPin(pin,config.value)){
+ if(!config?.value||pin.length<16||pin.length>64||/\s/.test(pin)||!await hashPin(pin,config.value)){
   await env.DB.prepare("INSERT INTO admin_login_attempts(ip,attempted_at) VALUES(?,?)").bind(ip,now).run();
   return Response.json({error:"Senha incorreta."},{status:401,headers:{"Cache-Control":"no-store"}});
  }
