@@ -48,9 +48,9 @@ export default function AdminApp() {
     if(r.ok) { setMessage("Conteúdo excluído."); await load(); } else setMessage("Não foi possível excluir.");
   };
   if(auth==="checking") return <div className="admin-screen"><Loader2 className="spin"/> Verificando acesso seguro…</div>;
-  if(auth==="blocked") return <div className="admin-screen"><div className="admin-lock"><ShieldCheck size={34}/><h1>Painel privado</h1><p>Esta área só aceita a conta autorizada. O Cloudflare Access precisa estar ativado para este endereço e permitir somente o e-mail cadastrado.</p><a href="/">Voltar ao CineVerse</a></div></div>;
+  if(auth==="blocked") return <div className="admin-screen"><div className="admin-lock"><ShieldCheck size={34}/><h1>Painel privado</h1><p>Entre com a conta Google autorizada para administrar o CineVerse.</p><a className="admin-primary" href="/auth/google">Entrar com Google</a><a href="/">Voltar ao CineVerse</a></div></div>;
 
-  return <div className="admin-screen"><header className="admin-header"><a className="admin-brand" href="/"><Clapperboard/> CINEVERSE <span>ADMIN</span></a><a href="/" className="admin-back"><ArrowLeft size={16}/> Ver site</a></header>
+  return <div className="admin-screen"><header className="admin-header"><a className="admin-brand" href="/"><Clapperboard/> CINEVERSE <span>ADMIN</span></a><div className="admin-head-actions"><a href="/" className="admin-back"><ArrowLeft size={16}/> Ver site</a><a href="/auth/logout" className="admin-back">Sair</a></div></header>
     <main className="admin-main"><div className="admin-heading"><div><span className="admin-kicker">CENTRAL DO CRIADOR</span><h1>Painel administrativo</h1><p>Gerencie séries, episódios e estreias do CineVerse.</p></div><span className="admin-secure"><ShieldCheck size={15}/> Acesso protegido</span></div>
     <div className="admin-tabs"><button className={tab==="series"?"selected":""} onClick={()=>setTab("series")}><Film size={16}/> Séries</button><button className={tab==="episodes"?"selected":""} onClick={()=>setTab("episodes")}><CalendarClock size={16}/> Episódios e estreias</button></div>
     {message && <div className="admin-message" role="status">{message}</div>}
