@@ -1,0 +1,1 @@
+export const onRequestGet=async({request}:any)=>new Response(null,{status:302,headers:{"Location":new URL("/",request.url).toString(),"Set-Cookie":"cv_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0","Cache-Control":"no-store"}});
