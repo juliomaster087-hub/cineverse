@@ -9,7 +9,7 @@ export const onRequestPost=async({request,env}:any)=>{
  if(Number(count?.total||0)>=5)return Response.json({error:"Muitas tentativas. Aguarde 15 minutos e tente novamente."},{status:429,headers:{"Retry-After":"900"}});
  let body:any={};try{body=await request.json();}catch{return Response.json({error:"Requisição inválida."},{status:400});}
  const pin=String(body.pin||"");
- if(!/^[0-9]{3,32}$/.test(pin)||!await checkPin(pin,env.ADMIN_PIN_HASH)){
+ if(!/^[A-Za-z0-9_-]{16,64}$/.test(pin)||!await checkPin(pin,env.ADMIN_PIN_HASH)){
   await env.DB.prepare("INSERT INTO admin_login_attempts(ip,attempted_at) VALUES(?,?)").bind(ip,now).run();
   return Response.json({error:"Senha incorreta."},{status:401,headers:{"Cache-Control":"no-store"}});
  }
