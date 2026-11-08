@@ -72,10 +72,10 @@ function Poster({ item, featured = false }: { item: Series; featured?: boolean }
   );
 }
 
-function Countdown({ target }: { target:number }) {
+function Countdown({ target, offset=0 }: { target:number; offset?:number }) {
   const [now,setNow] = useState(Date.now());
   useEffect(() => { const timer=window.setInterval(()=>setNow(Date.now()),1000); return ()=>window.clearInterval(timer); },[]);
-  const diff=Math.max(0,target-now);
+  const diff=Math.max(0,target-(now+offset));
   const days=Math.floor(diff/86400000), hours=Math.floor(diff%86400000/3600000), minutes=Math.floor(diff%3600000/60000), seconds=Math.floor(diff%60000/1000);
   useEffect(()=>{ if(diff===0){ const timer=window.setTimeout(()=>window.location.reload(),700); return ()=>window.clearTimeout(timer); } },[diff]);
   return <div className="episode-countdown"><strong>ESTREIA EM</strong><div><span>{days}<small>dias</small></span><b>:</b><span>{String(hours).padStart(2,"0")}<small>horas</small></span><b>:</b><span>{String(minutes).padStart(2,"0")}<small>min</small></span><b>:</b><span>{String(seconds).padStart(2,"0")}<small>seg</small></span></div></div>;
@@ -86,12 +86,13 @@ function youtubeEmbed(url:string) {
 
 export default function App() {
   const [catalog,setCatalog] = useState<Series[]>(series);
+  const [serverOffset,setServerOffset] = useState(0);
   const [activeFilter, setActiveFilter] = useState("Todas");
   const [search, setSearch] = useState("");
   const [saved, setSaved] = useState<Array<number|string>>([]);
   const [selected, setSelected] = useState<Series | null>(null);
   const [selectedEpisode,setSelectedEpisode] = useState<Episode | null>(null);
-  useEffect(() => { fetch("/api/catalog",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{ if(!data) return; const items=(data.series||[]).map((row:any)=>({id:row.id,title:row.title,genre:row.genre||"Série",year:String(row.year||"2026"),seasons:"Temporadas disponíveis",description:row.synopsis||"",color:"from-violet-950 via-indigo-900 to-slate-950",accent:"bg-violet-400",poster_url:row.poster_url,episodes:(data.episodes||[]).filter((ep:any)=>ep.series_id===row.id)})); if(items.length) setCatalog(items); }).catch(()=>{}); },[]);
+  useEffect(() => { fetch("/api/catalog",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{ if(!data) return; if(typeof data.serverNow==="number") setServerOffset(data.serverNow-Date.now()); const items=(data.series||[]).map((row:any)=>({id:row.id,title:row.title,genre:row.genre||"Série",year:String(row.year||"2026"),seasons:"Temporadas disponíveis",description:row.synopsis||"",color:"from-violet-950 via-indigo-900 to-slate-950",accent:"bg-violet-400",poster_url:row.poster_url,episodes:(data.episodes||[]).filter((ep:any)=>ep.series_id===row.id)})); if(items.length) setCatalog(items); }).catch(()=>{}); },[]);
   const [selectedEpisode,setSelectedEpisode] = useState<Episode | null>(null);
 
   useEffect(() => { fetch("/api/catalog",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{ if(!data) return; const items=(data.series||[]).map((row:any)=>({ id:row.id,title:row.title,genre:row.genre||"Série",year:String(row.year||"2026"),seasons:"Temporadas disponíveis",description:row.synopsis||"",color:"from-violet-950 via-indigo-900 to-slate-950",accent:"bg-violet-400",poster_url:row.poster_url,episodes:(data.episodes||[]).filter((ep:any)=>ep.series_id===row.id) })); if(items.length) setCatalog(items); }).catch(()=>{}); },[]);
@@ -204,7 +205,7 @@ export default function App() {
           <section className="series-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={(event) => event.stopPropagation()}>
             <button className="modal-close" onClick={() => { setSelected(null); setSelectedEpisode(null); }} aria-label="Fechar"><X size={20} /></button>
             <Poster item={selected} featured />
-            <div className="modal-content"><span className="section-kicker">SÉRIE · {selected.year}</span><h2 id="modal-title">{selected.title}</h2><p className="modal-meta">{selected.genre} <span>·</span> {selected.seasons}</p><p>{selected.description}</p><div className="episode-list"><strong>EPISÓDIOS</strong>{(selected.episodes||[]).map(ep=><button key={ep.id} className="episode-row" onClick={()=>setSelectedEpisode(ep)}><span>T{ep.season_number} · E{ep.episode_number} — {ep.title}</span><small>{ep.available?"Assistir":ep.scheduled_at? "Estreia programada":"Em breve"}</small></button>)}</div>{selectedEpisode && <div className="episode-player">{selectedEpisode.available ? <iframe title={selectedEpisode.title} src={youtubeEmbed(selectedEpisode.youtube_url)} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /> : selectedEpisode.scheduled_at ? <Countdown target={selectedEpisode.scheduled_at}/> : <p>Este episódio ainda não foi publicado.</p>}</div>}<button className="button-primary modal-action" onClick={() => toggleSaved(selected.id)}>{saved.includes(selected.id) ? <Check size={17} /> : <Bookmark size={17} />}{saved.includes(selected.id) ? "Salvo na sua lista" : "Adicionar à minha lista"}</button></div>
+            <div className="modal-content"><span className="section-kicker">SÉRIE · {selected.year}</span><h2 id="modal-title">{selected.title}</h2><p className="modal-meta">{selected.genre} <span>·</span> {selected.seasons}</p><p>{selected.description}</p><div className="episode-list"><strong>EPISÓDIOS</strong>{(selected.episodes||[]).map(ep=><button key={ep.id} className="episode-row" onClick={()=>setSelectedEpisode(ep)}><span>T{ep.season_number} · E{ep.episode_number} — {ep.title}</span><small>{ep.available?"Assistir":ep.scheduled_at? "Estreia programada":"Em breve"}</small></button>)}</div>{selectedEpisode && <div className="episode-player">{selectedEpisode.available ? <iframe title={selectedEpisode.title} src={youtubeEmbed(selectedEpisode.youtube_url)} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /> : selectedEpisode.scheduled_at ? <Countdown target={selectedEpisode.scheduled_at} offset={serverOffset}/> : <p>Este episódio ainda não foi publicado.</p>}</div>}<button className="button-primary modal-action" onClick={() => toggleSaved(selected.id)}>{saved.includes(selected.id) ? <Check size={17} /> : <Bookmark size={17} />}{saved.includes(selected.id) ? "Salvo na sua lista" : "Adicionar à minha lista"}</button></div>
           </section>
         </div>
       )}
