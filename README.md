@@ -46,3 +46,14 @@ A publicação só estará concluída depois que a implantação for executada e
 ## Direitos de conteúdo
 
 O CineVerse só deve publicar vídeos que sejam próprios, licenciados ou disponibilizados legalmente para distribuição. O catálogo inicial usa títulos fictícios de demonstração e não inclui episódios de séries comerciais.
+## Publicação de conteúdo
+
+O catálogo público é alimentado pelo Cloudflare D1. O painel administrativo fica em `/admin` e publica séries e episódios usando links do YouTube. Use somente vídeos próprios, licenciados ou com autorização para distribuição.
+
+### Estreias programadas
+
+Cada episódio pode ser publicado imediatamente ou agendado para uma data e hora futuras. O horário é salvo como timestamp no banco de dados; a API calcula a disponibilidade usando o relógio do servidor. O site mostra a mesma estreia para todos e libera o player quando o horário chega.
+
+### Segurança do painel
+
+O backend do painel fica em `/admin/api` e falha fechado sem uma sessão válida do Cloudflare Access. Configure uma aplicação Access específica para o caminho `cineverse-1qv.pages.dev/admin*`, com política Allow restrita ao e-mail administrador e autenticação One-time PIN. Depois, configure as variáveis de produção `ACCESS_TEAM_DOMAIN` e `ACCESS_AUD` no Pages. `ADMIN_EMAIL` já está configurado no ambiente de produção e não fica no código-fonte.
