@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 
 type Series = {
-  id: number;
+  id: number | string;
   title: string;
   genre: string;
   year: string;
@@ -71,13 +71,13 @@ export default function App() {
   const [activeFilter, setActiveFilter] = useState("Todas");
   const [search, setSearch] = useState("");
   const [saved, setSaved] = useState<number[]>([]);
-  const [selected, setSelected] = useState<Series | null>(null);
+  const [selected, setSelected] = useState<Series | null>(null);\n  const [selectedEpisode,setSelectedEpisode] = useState<Episode | null>(null);\n\n  useEffect(() => { fetch("/api/catalog",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{ if(!data) return; const items=(data.series||[]).map((row:any)=>({ id:row.id,title:row.title,genre:row.genre||"Série",year:String(row.year||"2026"),seasons:"Temporadas disponíveis",description:row.synopsis||"",color:"from-violet-950 via-indigo-900 to-slate-950",accent:"bg-violet-400",poster_url:row.poster_url,episodes:(data.episodes||[]).filter((ep:any)=>ep.series_id===row.id) })); if(items.length) setCatalog(items); }).catch(()=>{}); },[]);
 
-  const filtered = useMemo(() => series.filter((item) => {
+  const filtered = useMemo(() => catalog.filter((item) => {
     const matchesFilter = activeFilter === "Todas" || item.genre === activeFilter;
     const matchesSearch = `${item.title} ${item.genre} ${item.description}`.toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
-  }), [activeFilter, search]);
+  }), [catalog, activeFilter, search]);
 
   const toggleSaved = (id: number) => {
     setSaved((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
@@ -120,8 +120,8 @@ export default function App() {
             <div className="hero-note"><span className="live-dot" /> UM UNIVERSO DE SÉRIES, SEM ASSINATURA</div>
           </div>
           <div className="hero-feature">
-            <Poster item={series[0]} featured />
-            <div className="feature-caption"><span>DESTAQUE DO UNIVERSO</span><strong>Ecos da Aurora</strong><small>Fantasia · 1 temporada</small></div>
+            {catalog[0] && <Poster item={catalog[0]} featured />}
+            <div className="feature-caption"><span>DESTAQUE DO UNIVERSO</span><strong>{catalog[0]?.title || "Em breve"}</strong><small>{catalog[0]?.genre || "Séries"} · CineVerse</small></div>
           </div>
           <div className="hero-bottom-fade" />
         </section>
@@ -179,9 +179,9 @@ export default function App() {
       {selected && (
         <div className="modal-backdrop" role="presentation" onClick={() => setSelected(null)}>
           <section className="series-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={(event) => event.stopPropagation()}>
-            <button className="modal-close" onClick={() => setSelected(null)} aria-label="Fechar"><X size={20} /></button>
+            <button className="modal-close" onClick={() => { setSelected(null); setSelectedEpisode(null); }} aria-label="Fechar"><X size={20} /></button>
             <Poster item={selected} featured />
-            <div className="modal-content"><span className="section-kicker">SÉRIE · {selected.year}</span><h2 id="modal-title">{selected.title}</h2><p className="modal-meta">{selected.genre} <span>·</span> {selected.seasons}</p><p>{selected.description}</p><div className="coming-soon"><Sparkles size={16} /> Episódios autorizados serão disponibilizados em breve.</div><button className="button-primary modal-action" onClick={() => toggleSaved(selected.id)}>{saved.includes(selected.id) ? <Check size={17} /> : <Bookmark size={17} />}{saved.includes(selected.id) ? "Salvo na sua lista" : "Adicionar à minha lista"}</button></div>
+            <div className="modal-content"><span className="section-kicker">SÉRIE · {selected.year}</span><h2 id="modal-title">{selected.title}</h2><p className="modal-meta">{selected.genre} <span>·</span> {selected.seasons}</p><p>{selected.description}</p><div className="episode-list"><strong>EPISÓDIOS</strong>{(selected.episodes||[]).map(ep=><button key={ep.id} className="episode-row" onClick={()=>setSelectedEpisode(ep)}><span>T{ep.season_number} · E{ep.episode_number} — {ep.title}</span><small>{ep.available?"Assistir":ep.scheduled_at? "Estreia programada":"Em breve"}</small></button>)}</div>{selectedEpisode && <div className="episode-player">{selectedEpisode.available ? <iframe title={selectedEpisode.title} src={youtubeEmbed(selectedEpisode.youtube_url)} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /> : selectedEpisode.scheduled_at ? <Countdown target={selectedEpisode.scheduled_at}/> : <p>Este episódio ainda não foi publicado.</p>}</div>}<button className="button-primary modal-action" onClick={() => toggleSaved(selected.id)}>{saved.includes(selected.id) ? <Check size={17} /> : <Bookmark size={17} />}{saved.includes(selected.id) ? "Salvo na sua lista" : "Adicionar à minha lista"}</button></div>
           </section>
         </div>
       )}
