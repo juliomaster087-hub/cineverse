@@ -76,9 +76,14 @@ function Countdown({ target, offset=0 }: { target:number; offset?:number }) {
   const [now,setNow] = useState(Date.now());
   useEffect(() => { const timer=window.setInterval(()=>setNow(Date.now()),1000); return ()=>window.clearInterval(timer); },[]);
   const diff=Math.max(0,target-(now+offset));
-  const days=Math.floor(diff/86400000), hours=Math.floor(diff%86400000/3600000), minutes=Math.floor(diff%3600000/60000), seconds=Math.floor(diff%60000/1000);
+  const start=new Date(now+offset), end=new Date(target);
+  let months=Math.max(0,(end.getUTCFullYear()-start.getUTCFullYear())*12+end.getUTCMonth()-start.getUTCMonth());
+  const addMonths=(date:Date,count:number)=>{const d=new Date(date);const day=d.getUTCDate();d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()+count);const last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();d.setUTCDate(Math.min(day,last));return d;};
+  while(months>0&&addMonths(start,months).getTime()>target) months--;
+  const remainder=Math.max(0,target-addMonths(start,months).getTime());
+  const days=Math.floor(remainder/86400000), hours=Math.floor(remainder%86400000/3600000), minutes=Math.floor(remainder%3600000/60000), seconds=Math.floor(remainder%60000/1000);
   useEffect(()=>{ if(diff===0){ const timer=window.setTimeout(()=>window.location.reload(),700); return ()=>window.clearTimeout(timer); } },[diff]);
-  return <div className="episode-countdown"><strong>ESTREIA EM</strong><div><span>{days}<small>dias</small></span><b>:</b><span>{String(hours).padStart(2,"0")}<small>horas</small></span><b>:</b><span>{String(minutes).padStart(2,"0")}<small>min</small></span><b>:</b><span>{String(seconds).padStart(2,"0")}<small>seg</small></span></div></div>;
+  return <div className="episode-countdown"><strong>ESTREIA EM</strong><div>{months>0&&<><span>{months}<small>{months===1?"mês":"meses"}</small></span><b>:</b></>}<span>{days}<small>dias</small></span><b>:</b><span>{String(hours).padStart(2,"0")}<small>horas</small></span><b>:</b><span>{String(minutes).padStart(2,"0")}<small>min</small></span><b>:</b><span>{String(seconds).padStart(2,"0")}<small>seg</small></span></div></div>;
 }
 function youtubeEmbed(url:string) {
   try { const parsed=new URL(url); const id=parsed.hostname.includes("youtu.be")?parsed.pathname.slice(1):parsed.searchParams.get("v"); return id ? "https://www.youtube-nocookie.com/embed/"+encodeURIComponent(id) : ""; } catch { return ""; }
