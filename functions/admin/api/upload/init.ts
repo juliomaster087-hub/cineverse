@@ -1,4 +1,4 @@
-import { getMediaProviders, presignObject, publicObjectUrl } from "../../../_shared/media-storage";
+import { getMediaProviders, presignObject, publicObjectUrl, reserveMonthlyOperation } from "../../../_shared/media-storage";
 
 interface Env { DB: any; MEDIA_STORAGE_PROVIDERS?: string }
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
@@ -29,7 +29,7 @@ export const onRequestPost = async ({ request, env }: any) => {
     }, { status: 503 });
   }
 
-  const candidates = [];
+  const candidates: Array<{provider:any;used:number;remaining:number;ratio:number}> = [];
   for (const provider of providers) {
     const usage = await env.DB.prepare(
       "SELECT COALESCE(SUM(size_bytes),0) AS used_bytes FROM media_objects WHERE provider_id=? AND status IN ('uploading','ready')"
@@ -40,33 +40,40 @@ export const onRequestPost = async ({ request, env }: any) => {
   }
   candidates.sort((a, b) => a.ratio - b.ratio);
 
-  const selected = candidates[0];
-  if (!selected) {
+  if (!candidates.length) {
     return Response.json({
       error: "Os provedores conectados não têm espaço gratuito suficiente para este arquivo. Nenhum upload foi iniciado.",
       code: "FREE_STORAGE_EXHAUSTED",
     }, { status: 507 });
   }
 
-  const id = crypto.randomUUID();
-  const objectKey = "cineverse/" + id + "." + extension;
-  const publicUrl = publicObjectUrl(selected.provider, objectKey);
-  try {
-    const uploadUrl = await presignObject(selected.provider, "PUT", objectKey, 900);
-    await env.DB.prepare(
-      "INSERT INTO media_objects (id,provider_id,provider_type,object_key,public_url,size_bytes,content_type,status,created_at) VALUES (?,?,?,?,?,?,?,?,?)"
-    ).bind(id, selected.provider.id, selected.provider.type, objectKey, publicUrl, size, contentType, "uploading", Date.now()).run();
-    return Response.json({
-      upload_id: id,
-      provider_id: selected.provider.id,
-      provider_label: selected.provider.label,
-      object_key: objectKey,
-      public_url: publicUrl,
-      upload_url: uploadUrl,
-      size_bytes: size,
-      expires_in: 900,
-    }, { status: 201, headers: { "Cache-Control": "no-store" } });
-  } catch {
-    return Response.json({ error: "Não foi possível preparar o destino de armazenamento." }, { status: 502 });
+  for (const candidate of candidates) {
+    const operation = await reserveMonthlyOperation(env.DB, candidate.provider, "write");
+    if (!operation.allowed) continue;
+    const id = crypto.randomUUID();
+    const objectKey = id + "." + extension;
+    const publicUrl = publicObjectUrl(objectKey);
+    try {
+      const uploadUrl = await presignObject(candidate.provider, "PUT", objectKey, 3600);
+      await env.DB.prepare(
+        "INSERT INTO media_objects (id,provider_id,provider_type,object_key,public_url,size_bytes,content_type,status,created_at) VALUES (?,?,?,?,?,?,?,?,?)"
+      ).bind(id, candidate.provider.id, candidate.provider.type, objectKey, publicUrl, size, contentType, "uploading", Date.now()).run();
+      return Response.json({
+        upload_id: id,
+        provider_id: candidate.provider.id,
+        provider_label: candidate.provider.label,
+        object_key: objectKey,
+        public_url: publicUrl,
+        upload_url: uploadUrl,
+        size_bytes: size,
+        expires_in: 3600,
+      }, { status: 201, headers: { "Cache-Control": "no-store" } });
+    } catch {
+      return Response.json({ error: "Não foi possível preparar o destino de armazenamento." }, { status: 502 });
+    }
   }
+  return Response.json({
+    error: "O limite mensal gratuito de envios dos provedores conectados foi atingido. Nenhum envio foi iniciado.",
+    code: "FREE_WRITE_QUOTA_EXHAUSTED",
+  }, { status: 429 });
 };
