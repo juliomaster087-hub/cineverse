@@ -4,7 +4,7 @@ O Studio envia o arquivo diretamente para o armazenamento selecionado pelo Media
 
 ## Provedores suportados nesta primeira versão
 
-- **Cloudflare R2**: até 10 GiB de armazenamento na franquia gratuita publicada; saída de dados sem cobrança.
+- **Cloudflare R2**: até 10 GB de armazenamento na franquia gratuita publicada; saída de dados sem cobrança.
 - **Tigris Standard**: até 5 GiB de armazenamento na franquia gratuita publicada; saída de dados sem cobrança.
 
 O Media Manager distribui os arquivos pelo provedor com menor ocupação proporcional e recusa um upload se nenhum provedor tiver espaço livre suficiente. Os limites do código são tetos máximos da franquia; o responsável pela conta pode configurar um limite menor no segredo.
@@ -28,8 +28,7 @@ No Cloudflare Pages, em **Settings → Environment variables**, adicione `MEDIA_
     "region": "auto",
     "accessKeyId": "R2_ACCESS_KEY_ID",
     "secretAccessKey": "R2_SECRET_ACCESS_KEY",
-    "publicBaseUrl": "https://PUBLIC_VIDEO_DOMAIN",
-    "freeLimitBytes": 10737418240
+    "freeLimitBytes": 10000000000
   },
   {
     "id": "tigris-main",
@@ -40,25 +39,25 @@ No Cloudflare Pages, em **Settings → Environment variables**, adicione `MEDIA_
     "region": "auto",
     "accessKeyId": "TIGRIS_ACCESS_KEY_ID",
     "secretAccessKey": "TIGRIS_SECRET_ACCESS_KEY",
-    "publicBaseUrl": "https://PUBLIC_VIDEO_DOMAIN/BUCKET_PATH",
     "freeLimitBytes": 5368709120
   }
 ]
 ```
 
-Os valores `publicBaseUrl` precisam ser os endereços públicos reais dos buckets, configurados pelo provedor. A aplicação acrescenta `/cineverse/<uuid>.<extensão>` ao final do endereço.
+O bucket pode permanecer privado. A aplicação gera URLs de upload pré-assinadas e entrega a reprodução por uma rota privada do próprio CineVerse, que valida o cadastro e aplica os limites mensais de leitura.
 
 ## CORS dos buckets
 
-Configure CORS no bucket para aceitar a origem do site `https://cineverse-1qv.pages.dev`, método `PUT`, e cabeçalhos necessários para upload. Para leitura pública de vídeos, configure a política pública somente para os objetos de mídia licenciados. Não habilite listagem pública do bucket.
+Configure CORS no bucket para aceitar a origem do site `https://cineverse-1qv.pages.dev`, método `PUT`, e o cabeçalho `Content-Type`. Não é necessário habilitar leitura pública nem listagem pública do bucket; a reprodução passa pela rota de mídia do CineVerse.
 
 ## Proteção contra cobranças
 
 - O código limita os uploads a 2 GiB por arquivo.
+- O sistema reserva até 90% das cotas mensais publicadas de operações de escrita e leitura: R2 900 mil escritas / 9 milhões leituras; Tigris 9 mil escritas / 90 mil leituras.
 - O código não permite que o limite configurado ultrapasse a franquia gratuita publicada para cada tipo de provedor.
 - O sistema não tenta outro provedor se todos estiverem sem espaço.
 - Isso não substitui os controles de cobrança da conta: consumo de outros projetos, requisições, mudanças de plano ou alterações de preço podem gerar custos. O responsável deve desativar qualquer cobrança automática/overage que não aceite.
 
 ## Limites conhecidos
 
-A primeira versão oferece upload S3 compatível por URL pré-assinada, reprodução MP4/WebM/MOV por URL pública e distribuição entre R2 e Tigris. Ela não é armazenamento ilimitado, não faz transcodificação adaptativa e não monitora todas as requisições de leitura dos provedores. Antes de abrir o catálogo ao público, faça um teste com um vídeo autorizado e confirme reprodução, CORS e consumo no painel de cada provedor.
+A primeira versão oferece upload S3 compatível por URL pré-assinada, reprodução MP4/WebM/MOV pela rota protegida do CineVerse e distribuição entre R2 e Tigris. Ela não é armazenamento ilimitado e não faz transcodificação adaptativa. Os contadores do CineVerse cobrem as operações feitas pelo próprio site, mas não conseguem contabilizar o uso de outras aplicações na mesma conta. Antes de abrir o catálogo ao público, faça um teste com um vídeo autorizado e confirme reprodução, CORS e consumo no painel de cada provedor.
