@@ -1,4 +1,4 @@
-import { getMediaProviders, presignObject } from "../../../_shared/media-storage";
+import { getMediaProviders, presignObject, reserveMonthlyOperation } from "../../../_shared/media-storage";
 
 interface Env { DB: any; MEDIA_STORAGE_PROVIDERS?: string }
 
@@ -16,6 +16,9 @@ export const onRequestPost = async ({ request, env }: any) => {
 
   const provider = getMediaProviders(env).find((item) => item.id === row.provider_id);
   if (!provider) return Response.json({ error: "O provedor usado neste upload não está mais configurado." }, { status: 503 });
+
+  const operation = await reserveMonthlyOperation(env.DB, provider, "read");
+  if (!operation.allowed) return Response.json({ error: "O limite mensal gratuito de verificações foi atingido." }, { status: 429 });
 
   try {
     const headUrl = await presignObject(provider, "HEAD", row.object_key, 300);
