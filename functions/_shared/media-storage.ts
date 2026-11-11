@@ -7,13 +7,12 @@ export type MediaProvider = {
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
-  publicBaseUrl: string;
   freeLimitBytes: number;
 };
 
 const GIB = 1024 ** 3;
 const FREE_LIMITS: Record<string, number> = {
-  r2: 10 * GIB,
+  r2: 10_000_000_000,
   tigris: 5 * GIB,
 };
 
@@ -42,41 +41,61 @@ export function getMediaProviders(env: any): MediaProvider[] {
     if (!Array.isArray(parsed)) return [];
     const seen = new Set<string>();
     return parsed.flatMap((item: any) => {
-      const type = String(item.type || "");
-      const cap = FREE_LIMITS[type];
-      const id = String(item.id || type);
-      if (!cap || seen.has(type) || !/^[a-z0-9-]{2,32}$/.test(id)) return [];
-      const endpoint = new URL(String(item.endpoint || ""));
-      const publicBase = new URL(String(item.publicBaseUrl || ""));
-      if (endpoint.protocol !== "https:" || publicBase.protocol !== "https:") return [];
-      const bucket = String(item.bucket || "");
-      const accessKeyId = String(item.accessKeyId || "");
-      const secretAccessKey = String(item.secretAccessKey || "");
-      if (!/^[a-z0-9][a-z0-9.-]{1,62}$/.test(bucket) || !accessKeyId || !secretAccessKey) return [];
-      seen.add(type);
-      const requestedLimit = Number(item.freeLimitBytes);
-      const freeLimitBytes = Number.isFinite(requestedLimit) && requestedLimit > 0
-        ? Math.min(cap, requestedLimit)
-        : cap;
-      return [{
-        id,
-        type,
-        label: String(item.label || (type === "r2" ? "Cloudflare R2" : "Tigris")),
-        endpoint: endpoint.origin + endpoint.pathname.replace(/\/+$/, ""),
-        bucket,
-        region: String(item.region || (type === "r2" ? "auto" : "auto")),
-        accessKeyId,
-        secretAccessKey,
-        publicBaseUrl: publicBase.toString().replace(/\/+$/, ""),
-        freeLimitBytes,
-      }];
+      try {
+        const type = String(item.type || "");
+        const cap = FREE_LIMITS[type];
+        const id = String(item.id || type);
+        if (!cap || seen.has(type) || !/^[a-z0-9-]{2,32}$/.test(id)) return [];
+        const endpoint = new URL(String(item.endpoint || ""));
+        if (endpoint.protocol !== "https:") return [];
+        const bucket = String(item.bucket || "");
+        const accessKeyId = String(item.accessKeyId || "");
+        const secretAccessKey = String(item.secretAccessKey || "");
+        if (!/^[a-z0-9][a-z0-9.-]{1,62}$/.test(bucket) || !accessKeyId || !secretAccessKey) return [];
+        seen.add(type);
+        const requestedLimit = Number(item.freeLimitBytes);
+        const freeLimitBytes = Number.isFinite(requestedLimit) && requestedLimit > 0
+          ? Math.min(cap, requestedLimit)
+          : cap;
+        return [{
+          id,
+          type,
+          label: String(item.label || (type === "r2" ? "Cloudflare R2" : "Tigris")),
+          endpoint: endpoint.origin + endpoint.pathname.replace(/\/+$/, ""),
+          bucket,
+          region: String(item.region || "auto"),
+          accessKeyId,
+          secretAccessKey,
+          freeLimitBytes,
+        }];
+      } catch {
+        return [];
+      }
     });
   } catch {
     return [];
   }
 }
 
-export async function presignObject(provider: MediaProvider, method: "PUT" | "HEAD" | "DELETE", key: string, expires = 900) {
+export function providerRequestLimit(provider: MediaProvider, kind: "read" | "write") {
+  if (provider.type === "r2") return kind === "read" ? 9_000_000 : 900_000;
+  return kind === "read" ? 90_000 : 9_000;
+}
+
+export async function reserveMonthlyOperation(db: any, provider: MediaProvider, kind: "read" | "write") {
+  const month = new Date().toISOString().slice(0, 7);
+  const column = kind === "read" ? "read_requests" : "write_requests";
+  const limit = providerRequestLimit(provider, kind);
+  await db.prepare(
+    "INSERT OR IGNORE INTO media_provider_usage (provider_id,month_key,read_requests,write_requests) VALUES (?,?,0,0)"
+  ).bind(provider.id, month).run();
+  const row = await db.prepare(
+    `UPDATE media_provider_usage SET ${column}=${column}+1 WHERE provider_id=? AND month_key=? AND ${column}<? RETURNING ${column} AS used`
+  ).bind(provider.id, month, limit).first();
+  return { allowed: !!row, used: Number(row?.used || limit), limit, month };
+}
+
+export async function presignObject(provider: MediaProvider, method: "PUT" | "GET" | "HEAD" | "DELETE", key: string, expires = 900) {
   const url = new URL(provider.endpoint);
   const basePath = url.pathname.replace(/\/+$/, "");
   const objectPath = key.split("/").map(enc).join("/");
@@ -122,8 +141,8 @@ export async function presignObject(provider: MediaProvider, method: "PUT" | "HE
   return url.toString();
 }
 
-export function publicObjectUrl(provider: MediaProvider, key: string) {
-  return provider.publicBaseUrl + "/" + key.split("/").map(enc).join("/");
+export function publicObjectUrl(key: string) {
+  return "/media/" + encodeURIComponent(key);
 }
 
 export async function deleteStoredObject(provider: MediaProvider, key: string) {
