@@ -83,7 +83,7 @@ export default function AdminApp() {
         const transfer=await fetch(initData.upload_url,{method:"PUT",headers:{"Content-Type":videoFile.type},body:videoFile});
         if(!transfer.ok) throw new Error("O provedor recusou o arquivo. Verifique se o CORS do bucket está configurado.");
         const completed=await fetch(API+"/upload/complete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({upload_id:pendingUploadId})});
-        const uploadData=await completed.json(); if(!completed.ok) throw new Error(uploadData.error||"Não foi possível confirmar o vídeo.");
+        const uploadData=await completed.json(); if(!completed.ok) { const d=uploadData.diagnostic; const detail=d?.status?(` (HTTP ${d.status}${d.status_text?" "+d.status_text:""}${d.request_id?" · ID "+d.request_id:""})`):d?.error_type?(` (${d.error_type})`):""; throw new Error((uploadData.error||"Não foi possível confirmar o vídeo.")+detail); }
         video_key=uploadData.object_key; video_url=uploadData.public_url; video_provider=uploadData.provider_id;
       } else if(!episodeForm.youtube_url.trim()) throw new Error("Informe o link do YouTube.");
       const payload={...episodeForm,video_key,video_url,video_provider,youtube_url:episodeForm.source==="youtube"?episodeForm.youtube_url:"",scheduled_at:episodeForm.mode==="scheduled"?new Date(episodeForm.scheduled_at).getTime():null};
