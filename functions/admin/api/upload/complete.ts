@@ -24,8 +24,20 @@ export const onRequestPost = async ({ request, env }: any) => {
     const headUrl = await presignObject(provider, "HEAD", row.object_key, 300);
     const head = await fetch(headUrl, { method: "HEAD" });
     if (!head.ok) {
+      const diagnostic = {
+        status: head.status,
+        status_text: head.statusText,
+        request_id: head.headers.get("x-amz-request-id") || head.headers.get("x-tigris-request-id") || null,
+        server: head.headers.get("server") || null,
+        redirected: head.redirected,
+        final_host: head.url ? new URL(head.url).hostname : null,
+      };
+      console.error("[cineverse-upload] Tigris HEAD rejected", { provider_id: provider.id, object_key: row.object_key, ...diagnostic });
       await env.DB.prepare("UPDATE media_objects SET status='failed' WHERE id=?").bind(id).run();
-      return Response.json({ error: "O provedor ainda não confirmou o recebimento do arquivo." }, { status: 409 });
+      return Response.json({
+        error: "O Tigris recusou a verificação do vídeo.",
+        diagnostic,
+      }, { status: 409 });
     }
     const receivedSize = Number(head.headers.get("content-length") || 0);
     if (receivedSize && receivedSize !== Number(row.size_bytes)) {
@@ -41,7 +53,14 @@ export const onRequestPost = async ({ request, env }: any) => {
       public_url: row.public_url,
       size_bytes: row.size_bytes,
     }, { headers: { "Cache-Control": "no-store" } });
-  } catch {
-    return Response.json({ error: "Não foi possível verificar o arquivo no armazenamento." }, { status: 502 });
+  } catch (error) {
+    const diagnostic = {
+      error_type: error instanceof Error ? error.name : "UnknownError",
+    };
+    console.error("[cineverse-upload] Tigris HEAD request threw", { provider_id: provider.id, object_key: row.object_key, ...diagnostic });
+    return Response.json({
+      error: "A verificação do vídeo não conseguiu completar a requisição ao Tigris.",
+      diagnostic,
+    }, { status: 502 });
   }
 };
