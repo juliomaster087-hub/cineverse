@@ -99,7 +99,16 @@ export async function presignObject(provider: MediaProvider, method: "PUT" | "GE
   const url = new URL(provider.endpoint);
   const basePath = url.pathname.replace(/\/+$/, "");
   const objectPath = key.split("/").map(enc).join("/");
-  url.pathname = basePath + "/" + enc(provider.bucket) + "/" + objectPath;
+
+  // New Tigris buckets require virtual-hosted-style addressing. Path-style
+  // URLs (endpoint/bucket/key) fail for buckets created after Feb 19, 2025.
+  // Keep the bucket hostname in the SigV4 canonical host as well.
+  if (provider.type === "tigris") {
+    url.hostname = provider.bucket + "." + url.hostname;
+    url.pathname = basePath + "/" + objectPath;
+  } else {
+    url.pathname = basePath + "/" + enc(provider.bucket) + "/" + objectPath;
+  }
 
   const now = new Date();
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
